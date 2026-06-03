@@ -50,13 +50,12 @@ const YieldPlanner = () => {
   const location = useLocation();
   const recommendedCrop = location.state?.recommendedCrop;
   const { user } = useAuth();
-  const { activePlot, loading: isLoading } = useWorkspace();
+  const { activePlot, profileData, loading: isLoading } = useWorkspace();
   const inferredCrop = activePlot ? (Object.keys(CROP_COEFFICIENTS).find(c => activePlot.name && activePlot.name.includes(c)) || activePlot.crop || 'Rice') : 'Rice';
   const targetCrop = recommendedCrop || inferredCrop;
   
   const [savingPlan, setSavingPlan] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
-  const { profileData } = useAuth();
   const [marketData, setMarketData] = useState(null);
 
   // Multipliers controlled by UI sliders
@@ -97,22 +96,97 @@ const YieldPlanner = () => {
     }
   }, [cropBaseline, marketData]);
 
-  // Yield Math Equations
-  const financialMetrics = useMemo(() => {
-    if (!activePlot || !cropBaseline) return { yieldTotal: 0, revenue: 0, costTotal: 0, netProfit: 0, margin: 0 };
+  const [mlData, setMlData] = useState(null);
+  const [isPredicting, setIsPredicting] = useState(false);
 
-    const soilMultiplier = SOIL_COEFFICIENTS[activePlot.soil] || 1.0;
+  // Crop-specific agronomic defaults (ICAR recommended dose of fertilizer)
+  const CROP_NPK_DEFAULTS = {
+    Wheat:      { N: 120, P: 60, K: 40, ph: 6.5 },
+    Rice:       { N: 120, P: 60, K: 40, ph: 6.0 },
+    Maize:      { N: 120, P: 60, K: 40, ph: 6.5 },
+    Cotton:     { N: 120, P: 60, K: 60, ph: 7.0 },
+    Soybean:    { N: 20,  P: 60, K: 40, ph: 6.5 },
+    Sugarcane:  { N: 150, P: 60, K: 60, ph: 6.5 },
+    Groundnut:  { N: 25,  P: 50, K: 40, ph: 6.5 },
+    Vegetables: { N: 100, P: 50, K: 50, ph: 6.5 },
+  };
+
+  // Fetch ML Prediction
+  useEffect(() => {
+    if (!activePlot || !profileData) return;
     
-    // Total Yield = BaseYield * Area * SeedQuality * WaterEfficiency * SoilHealth * FertilizerLevel
-    const baseTotalYield = cropBaseline.baseYield * activePlot.area;
-    const computedYield = baseTotalYield * seedQuality * waterEfficiency * soilMultiplier * fertilizerLevel;
+    const fetchPrediction = async () => {
+      setIsPredicting(true);
+      try {
+        // Fetch live weather for the user's city
+        const city = profileData.city || profileData.district || 'Delhi';
+        let weatherTemp = 25, weatherHumidity = 60, weatherRainfall = 100;
+        try {
+          const weatherRes = await api.weather.getCurrent(city);
+          if (weatherRes) {
+            weatherTemp = weatherRes.temperature ?? weatherRes.temp ?? 25;
+            weatherHumidity = weatherRes.humidity ?? 60;
+            weatherRainfall = weatherRes.rainfall ?? weatherRes.rain ?? 100;
+          }
+        } catch (e) {
+          console.warn("Weather fetch failed for ML, using defaults", e);
+        }
 
+        const cropDefaults = CROP_NPK_DEFAULTS[targetCrop] || { N: 100, P: 50, K: 40, ph: 6.5 };
+
+        const features = {
+          crop: targetCrop,
+          state: profileData.state || 'Unknown',
+          area: activePlot.area,
+          temperature: weatherTemp,
+          humidity: weatherHumidity,
+          rainfall: weatherRainfall,
+          nitrogen: activePlot.nitrogen ?? cropDefaults.N,
+          phosphorus: activePlot.phosphorus ?? cropDefaults.P,
+          potassium: activePlot.potassium ?? cropDefaults.K,
+          ph: activePlot.ph ?? cropDefaults.ph,
+          soil: activePlot.soil,
+          irrigation: activePlot.irrigation,
+          season: activePlot.season || 'Kharif'
+        };
+        const res = await api.ml.predictYield(features);
+        setMlData(res);
+      } catch (err) {
+        console.error("Failed to fetch ML prediction", err);
+      } finally {
+        setIsPredicting(false);
+      }
+    };
+    
+    const timer = setTimeout(fetchPrediction, 500); // Debounce
+    return () => clearTimeout(timer);
+  }, [activePlot, targetCrop, profileData]);
+
+  // Financial Metrics (using ML Yield × Slider Modifiers)
+  const financialMetrics = useMemo(() => {
+    if (!activePlot || !cropBaseline || !mlData) return { yieldTotal: 0, revenue: 0, costTotal: 0, netProfit: 0, margin: 0, adjustedYieldRate: 0 };
+
+    // mlData.predicted_yield is the baseline Rate (Tons/Hectare) from Random Forest.
+    // Sliders represent farm management quality that the ML model cannot observe:
+    //   seedQuality:     Seed genetics grade (0.8 Local → 1.25 Elite HYV)
+    //   waterEfficiency: Water availability   (0.8 Deficit → 1.15 Optimal Drip)
+    //   fertilizerLevel: Nutrient application  (0.85 Low → 1.20 Precision)
+    // Actual Yield = ML Baseline × Seed × Water × Nutrients
+    const managementMultiplier = seedQuality * waterEfficiency * fertilizerLevel;
+    const adjustedYieldRate = mlData.predicted_yield * managementMultiplier;
+
+    // activePlot.area is in Acres. 1 Hectare = 2.47105 Acres.
+    const areaInHectares = activePlot.area / 2.47105;
+    
+    // Total Yield in kg = Adjusted Yield Rate (Tons/Hectare) × Area (Hectares) × 1000 kg/Ton
+    const computedYield = adjustedYieldRate * areaInHectares * 1000; 
+    
     // Financial Metrics
     const grossRevenue = computedYield * priceOverride;
     
     // Input Cost scales with selected Seed Quality, fertilizer levels, and water costs
     const baseCostPerAcre = costOverride;
-    const qualityPremium = (seedQuality - 0.8) * 4500; // better seeds cost more
+    const qualityPremium = (seedQuality - 0.8) * 4500; 
     const inputPremium = (fertilizerLevel - 0.85) * 3200;
     const waterCost = (waterEfficiency - 0.8) * 2000;
     const computedCostPerAcre = baseCostPerAcre + qualityPremium + inputPremium + waterCost;
@@ -123,12 +197,13 @@ const YieldPlanner = () => {
 
     return {
       yieldTotal: Math.round(computedYield),
+      adjustedYieldRate: Math.round(adjustedYieldRate * 100) / 100,
       revenue: Math.round(grossRevenue),
       costTotal: Math.round(totalExpenses),
       netProfit: Math.round(netProfit),
       margin: Math.round(profitMargin * 10) / 10
     };
-  }, [activePlot, cropBaseline, seedQuality, waterEfficiency, fertilizerLevel, priceOverride, costOverride]);
+  }, [activePlot, cropBaseline, seedQuality, waterEfficiency, fertilizerLevel, priceOverride, costOverride, mlData]);
 
   // Seed / fertilizer quality text helpers
   const getQualityLabel = (val) => {
@@ -444,17 +519,76 @@ const YieldPlanner = () => {
                 </div>
               </div>
 
-              {/* Yield Output Metric */}
-              <div className="bg-neutral-50 border border-neutral-200 rounded-xl p-4 flex items-center justify-between">
-                <div>
-                  <div className="text-xs text-neutral-400 font-bold uppercase tracking-wider">Estimated Biomass Harvest</div>
-                  <div className="text-3xl font-extrabold text-neutral-900 mt-1 flex items-baseline gap-1">
-                    {financialMetrics.yieldTotal.toLocaleString()} <span className="text-sm font-semibold text-neutral-500">kg</span>
+              {/* ML Yield Output Panel */}
+              <div className="bg-neutral-50 border border-neutral-200 rounded-xl overflow-hidden shadow-sm">
+                <div className="bg-white px-5 py-4 border-b border-neutral-200 flex items-center justify-between">
+                  <div>
+                    <div className="text-xs text-neutral-500 font-bold uppercase tracking-wider">Machine Learning Forecast</div>
+                    <div className="text-3xl font-extrabold text-neutral-900 mt-1 flex items-baseline gap-1">
+                      {isPredicting ? (
+                        <Loader2 className="animate-spin text-emerald-600" size={24} />
+                      ) : (
+                        <>
+                          {financialMetrics.yieldTotal.toLocaleString()} <span className="text-sm font-semibold text-neutral-500">kg Total</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="bg-emerald-50 border border-emerald-200/50 p-3 rounded-full">
+                    <Sprout className="text-emerald-600" size={28} />
                   </div>
                 </div>
-                <div className="bg-emerald-50 border border-emerald-200/50 p-3 rounded-full">
-                  <Sprout className="text-emerald-600" size={28} />
-                </div>
+                
+                {mlData && !isPredicting && (
+                  <div className="p-4 space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <span className="text-[10px] uppercase font-bold text-neutral-400">Adjusted Yield Rate</span>
+                        <p className="text-sm font-bold text-neutral-800">{financialMetrics.adjustedYieldRate} Tons/Hectare</p>
+                        <p className="text-[10px] text-neutral-400">ML Baseline: {mlData.predicted_yield} t/ha × {(seedQuality * waterEfficiency * fertilizerLevel).toFixed(2)} mgmt</p>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[10px] uppercase font-bold text-neutral-400">Prediction Range</span>
+                        <p className="text-sm font-bold text-neutral-600">{(mlData.prediction_range[0] * seedQuality * waterEfficiency * fertilizerLevel).toFixed(2)} - {(mlData.prediction_range[1] * seedQuality * waterEfficiency * fertilizerLevel).toFixed(2)} Tons/Ha</p>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[10px] uppercase font-bold text-neutral-400">Model Confidence</span>
+                        <p className={`text-sm font-bold ${
+                          mlData.confidence_level === 'High' ? 'text-emerald-600' :
+                          mlData.confidence_level === 'Medium' ? 'text-amber-500' : 'text-red-500'
+                        }`}>
+                          {mlData.confidence_level} ({mlData.confidence_score}%)
+                        </p>
+                        {mlData.confidence_reasons && mlData.confidence_reasons.length > 0 && (
+                          <div className="pt-1">
+                            <span className="text-[10px] font-semibold text-neutral-500 block mb-0.5">Reason:</span>
+                            {mlData.confidence_reasons.map((reason, idx) => (
+                              <p key={idx} className={`text-[10px] leading-tight flex items-start gap-1 ${reason.startsWith('⚠') ? 'text-amber-600 font-medium' : 'text-neutral-500'}`}>
+                                {reason}
+                              </p>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[10px] uppercase font-bold text-neutral-400">Prediction Method</span>
+                        <p className="text-xs font-medium text-neutral-500">{mlData.method}</p>
+                      </div>
+                    </div>
+
+                    <div className="pt-3 border-t border-neutral-100">
+                      <span className="text-[10px] uppercase font-bold text-neutral-400 block mb-2">Top Contributing Factors</span>
+                      <ul className="space-y-1.5">
+                        {mlData.top_factors.map((factor, idx) => (
+                          <li key={idx} className="flex items-start gap-1.5 text-xs text-neutral-600">
+                            <Info size={14} className="text-emerald-500 shrink-0 mt-0.5" />
+                            {factor}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Financial KPI Cards */}

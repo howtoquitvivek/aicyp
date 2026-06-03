@@ -140,6 +140,14 @@ const api = {
         body: JSON.stringify({ question, activePlotId, chatHistory, action }),
       }),
   },
+
+  ml: {
+    predictYield: (features) =>
+      request('/api/ml/predict-yield', {
+        method: 'POST',
+        body: JSON.stringify(features),
+      }),
+  },
 };
 
 export default api;

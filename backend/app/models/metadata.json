@@ -1,0 +1,98 @@
+{
+  "features": {
+    "categorical": [
+      "State_Name",
+      "Season",
+      "Crop"
+    ],
+    "numerical": [
+      "temperature",
+      "humidity",
+      "rainfall",
+      "N",
+      "P",
+      "K",
+      "ph"
+    ]
+  },
+  "metrics": {
+    "mae": 1.1016797853944378,
+    "rmse": 3.1665811988934536,
+    "r2": 0.8543895910512651
+  },
+  "feature_importances": {
+    "K": 0.5479671137507689,
+    "State_Name": 0.2272329682676835,
+    "P": 0.09241147516854191,
+    "N": 0.037410735890850096,
+    "Crop": 0.021636688284388694,
+    "rainfall": 0.019386926441552543,
+    "temperature": 0.018519836372094454,
+    "ph": 0.01712358614986665,
+    "humidity": 0.015062647005491075,
+    "Season": 0.003248022668762264
+  },
+  "classes": {
+    "State_Name": [
+      "Andaman and Nicobar Islands",
+      "Andhra Pradesh",
+      "Arunachal Pradesh",
+      "Assam",
+      "Bihar",
+      "Chandigarh",
+      "Chhattisgarh",
+      "Dadra and Nagar Haveli",
+      "Goa",
+      "Gujarat",
+      "Haryana",
+      "Himachal Pradesh",
+      "Jammu and Kashmir ",
+      "Jharkhand",
+      "Karnataka",
+      "Kerala",
+      "Madhya Pradesh",
+      "Maharashtra",
+      "Manipur",
+      "Meghalaya",
+      "Mizoram",
+      "Nagaland",
+      "Odisha",
+      "Puducherry",
+      "Punjab",
+      "Rajasthan",
+      "Sikkim",
+      "Tamil Nadu",
+      "Telangana ",
+      "Tripura",
+      "Unknown",
+      "Uttar Pradesh",
+      "Uttarakhand",
+      "West Bengal"
+    ],
+    "Season": [
+      "Autumn     ",
+      "Kharif     ",
+      "Rabi       ",
+      "Summer     ",
+      "Unknown",
+      "Whole Year ",
+      "Winter     "
+    ],
+    "Crop": [
+      "Unknown",
+      "apple",
+      "banana",
+      "blackgram",
+      "coffee",
+      "grapes",
+      "jute",
+      "lentil",
+      "maize",
+      "mango",
+      "orange",
+      "papaya",
+      "rice",
+      "wheat"
+    ]
+  }
+}

@@ -11,6 +11,7 @@ from app.api.users import router as users_router
 from app.api.datasets import router as datasets_router
 from app.api.ai import router as ai_router
 from app.api.agri_bot import router as agri_bot_router
+from app.api.ml import router as ml_router
 from app.core.database import ping_db, close_db
 
 
@@ -56,6 +57,7 @@ app.include_router(users_router)
 app.include_router(datasets_router)
 app.include_router(ai_router)
 app.include_router(agri_bot_router)
+app.include_router(ml_router)
 
 
 @app.get("/")
