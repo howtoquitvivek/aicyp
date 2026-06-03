@@ -11,7 +11,7 @@ const containerVariants = {
 };
 
 const FarmWorkspace = () => {
-  const [activeMode, setActiveMode] = useState('satellite'); // 'satellite' | 'planning'
+  const [activeMode, setActiveMode] = useState('planning'); // 'satellite' | 'planning'
 
   return (
     <motion.div 
@@ -29,17 +29,6 @@ const FarmWorkspace = () => {
         
         <div className="bg-neutral-100 p-1 rounded-lg flex items-center shadow-inner">
           <button
-            onClick={() => setActiveMode('satellite')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
-              activeMode === 'satellite' 
-                ? 'bg-white text-emerald-700 shadow-sm' 
-                : 'text-neutral-600 hover:text-neutral-900'
-            }`}
-          >
-            <Map size={18} />
-            Satellite View
-          </button>
-          <button
             onClick={() => setActiveMode('planning')}
             className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
               activeMode === 'planning' 
@@ -49,6 +38,17 @@ const FarmWorkspace = () => {
           >
             <Grid size={18} />
             Planning View
+          </button>
+          <button
+            onClick={() => setActiveMode('satellite')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+              activeMode === 'satellite' 
+                ? 'bg-white text-emerald-700 shadow-sm' 
+                : 'text-neutral-600 hover:text-neutral-900'
+            }`}
+          >
+            <Map size={18} />
+            Satellite View
           </button>
         </div>
       </div>

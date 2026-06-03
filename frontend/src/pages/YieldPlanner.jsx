@@ -51,7 +51,8 @@ const YieldPlanner = () => {
   const recommendedCrop = location.state?.recommendedCrop;
   const { user } = useAuth();
   const { activePlot, loading: isLoading } = useWorkspace();
-  const targetCrop = recommendedCrop || activePlot?.crop || 'Rice';
+  const inferredCrop = activePlot ? (Object.keys(CROP_COEFFICIENTS).find(c => activePlot.name && activePlot.name.includes(c)) || activePlot.crop || 'Rice') : 'Rice';
+  const targetCrop = recommendedCrop || inferredCrop;
   
   const [savingPlan, setSavingPlan] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);

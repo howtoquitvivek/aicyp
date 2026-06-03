@@ -314,7 +314,7 @@ const PlanningView = () => {
   }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8 text-left relative">
+    <div className="max-w-7xl mx-auto space-y-8 text-left relative p-6">
       
       {/* Dynamic Alert Banner */}
       <AnimatePresence>

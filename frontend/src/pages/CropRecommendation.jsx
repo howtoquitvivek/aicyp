@@ -154,9 +154,9 @@ const CropRecommendation = () => {
       setSelectedCrop(topPick); // Pre-select top pick
       
       // Auto-save the recommendation history
-      if (user?.uid && activePlot) {
+      if (user?.uid && selectedPlotId !== 'manual') {
         api.users.saveRecommendation(user.uid, {
-          plotId: activePlot.id,
+          plotId: selectedPlotId,
           crop: topPick.crop,
           confidence: topPick.confidence,
           nitrogen: payload.nitrogen,

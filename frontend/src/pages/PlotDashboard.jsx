@@ -250,9 +250,12 @@ const PlotDashboard = () => {
     >
       {/* Page Header */}
       <motion.div className="flex flex-col space-y-2" variants={cardVariants}>
-        <h1 className="text-3xl font-bold tracking-tight text-neutral-900">
-          Good morning, {displayName}
-        </h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold tracking-tight text-neutral-900">
+            Good morning, {displayName}
+          </h1>
+          <PlotActivityTimeline userDoc={userData} />
+        </div>
         <p className="text-lg text-neutral-500">
           Here's an overview of your {plotArea.toFixed(1)} Acre plot in {profileData?.district || 'your region'}.
         </p>
@@ -392,7 +395,7 @@ const PlotDashboard = () => {
         </div>
 
         {/* Sidebar Area (1/3 width) */}
-        <div className="space-y-6">
+        <div className="space-y-6 lg:sticky lg:top-6 lg:h-fit lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto custom-scrollbar pb-6">
           
           <motion.div variants={cardVariants} className="h-auto">
             <SmartPlotInsights plotData={plotInsightData} />
@@ -440,8 +443,27 @@ const PlotDashboard = () => {
               </CardContent>
             </Card>
           </motion.div>
-          <motion.div variants={cardVariants} className="h-full min-h-[400px]">
-            <PlotActivityTimeline userDoc={userData} />
+
+          <motion.div variants={cardVariants}>
+            <Card className="bg-emerald-600 text-white border-transparent shadow-lg overflow-hidden relative">
+              <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white opacity-10"></div>
+              <div className="absolute bottom-0 left-0 -ml-10 -mb-10 w-40 h-40 rounded-full bg-white opacity-[0.07]"></div>
+              <CardContent className="p-6 relative z-10 flex flex-col items-center text-center space-y-4">
+                <div className="bg-white/20 p-3 rounded-full backdrop-blur-sm">
+                  <Sprout size={32} className="text-white" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="font-bold text-lg tracking-tight">Maximize Your Yield</h3>
+                  <p className="text-emerald-50 text-xs leading-relaxed max-w-[200px]">Run our AI Predictive Engine to simulate harvest scenarios and optimize your profit margin.</p>
+                </div>
+                <Button 
+                  onClick={() => navigate(`/plot/${activePlot.id}/yield`)}
+                  className="w-full bg-white text-emerald-700 hover:bg-emerald-50 border-none font-bold shadow-sm mt-2 transition-transform hover:scale-[1.02]"
+                >
+                  Launch Yield Planner <ArrowRight size={16} className="ml-2" />
+                </Button>
+              </CardContent>
+            </Card>
           </motion.div>
 
         </div>
